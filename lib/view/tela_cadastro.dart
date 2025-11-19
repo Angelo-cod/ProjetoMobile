@@ -1,6 +1,9 @@
-import 'package:filmes/componentes/campos.dart';
+import 'package:filmes/controller/filmes_controller.dart';
+import 'package:filmes/view/componentes/campos.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:filmes/model/filme.dart';
+import 'package:filmes/database/db_actions.dart';
 
 class FormCadastro extends StatefulWidget {
   const FormCadastro({super.key});
@@ -15,7 +18,10 @@ class _FormCadastroState extends State<FormCadastro> {
   final TextEditingController generoController = TextEditingController();
   final TextEditingController duracaoController = TextEditingController();
   final TextEditingController anoController = TextEditingController();
+  final TextEditingController descricaoController = TextEditingController();
+  var _filmesController = FilmesController();
   String dropdownValue = 'Livre';
+  double nota = 0.0;
   
 
   @override
@@ -42,13 +48,13 @@ class _FormCadastroState extends State<FormCadastro> {
 
             CamposForm(
               hintText: "Gênero", 
-              controller: tituloController, 
+              controller: generoController, 
               keyboardType: TextInputType.text
             ),
 
             Row(
               children: [
-                Text("Faixa Etária  ", style: TextStyle(fontSize: 28.0)),
+                Text("Faixa Etária  ", style: TextStyle(fontSize: 18.0)),
                 DropdownButton<String>(
                   value: dropdownValue,
                   icon: Icon(Icons.arrow_drop_down),
@@ -77,19 +83,18 @@ class _FormCadastroState extends State<FormCadastro> {
 
             Row(
               children: [
-                Text("Nota: ", style: TextStyle(fontSize: 16.0)),
+                Text("Nota: ", style: TextStyle(fontSize: 18.0)),
                 RatingBar.builder(
                   initialRating: 0,
                   minRating: 1,
                   direction: Axis.horizontal,
                   allowHalfRating: true,
                   itemCount: 5,
-                  itemPadding: EdgeInsetsGeometry.symmetric(horizontal: 6.0, vertical: 11.0),
+                  itemPadding: EdgeInsets.symmetric(horizontal: 6.0, vertical: 11.0),
                   itemBuilder: (context, _) => Icon(Icons.star, color: Colors.amber,),
                   itemSize: 20.0,
                   
-                  // ignore: avoid_print
-                  onRatingUpdate: (rating) {print(rating); } ,
+                  onRatingUpdate: (rating) { nota = rating; } ,
                 ),
               ],
             ),
@@ -97,15 +102,75 @@ class _FormCadastroState extends State<FormCadastro> {
             CamposForm(
               hintText: "Ano", 
               controller: anoController, 
+              keyboardType: TextInputType.number
+            ),
+
+            SizedBox( width: 25.0,),
+
+            CamposForm(
+              hintText: "Descrição", 
+              controller: descricaoController, 
               keyboardType: TextInputType.text
             ),
+
 
           ], //children
         )
       ),
 
-      floatingActionButton: FloatingActionButton(onPressed: (){}),
+      floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            _actionCadastrar();
+          },
+          mini: true,
+          child: Icon(Icons.add))
     );
   }
+
+  void _actionCadastrar() async{
+    final String url = urlController.text.trim();
+    final String titulo = tituloController.text.trim();
+    final String genero = generoController.text.trim();
+    final String faixa = dropdownValue;
+    final int duracao = int.tryParse(duracaoController.text.trim()) ?? 0;
+    final int ano = int.tryParse(anoController.text.trim()) ?? 0;
+    final int notaInt = nota.round();
+    final String descricao = descricaoController.text.trim();
+
+    final filme = Filme(
+      url,
+      titulo,
+      genero,
+      faixa,
+      duracao.toString(),
+      notaInt.toString(),
+      ano.toString(),
+      descricao,
+    );
+
+    try {
+      // tenta salvar e guarda retorno (id) caso exista
+      final result = await _filmesController.save(filme);
+
+      // Se save retornar algo (id) considera sucesso, se for null ou 0 mostra erro
+      if (result != null && (result is int ? result > 0 : true)) {
+        _showSnackBar("Filme cadastrado com sucesso!");
+        Navigator.pop(context, true); // retorna true para a Home recarregar
+      } else {
+        _showSnackBar("Erro ao salvar o filme.");
+      }
+    } catch (e, st) {
+      // mostra erro e imprime no console para debug
+      _showSnackBar("Erro ao salvar: ${e.toString()}");
+      print('Erro ao salvar filme: $e\n$st');
+    }
+  }
+
+  void _showSnackBar(String value){
+    ScaffoldMessenger
+        .of(context)
+        .showSnackBar(SnackBar(content: Text(value)));
+  }
+
 }
 
